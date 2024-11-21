@@ -5,54 +5,59 @@ const path = require('path');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Affiche toutes les commandes disponibles regroupées par dossier.'),
+    .setDescription('Affiche toutes les commandes disponibles, regroupées par catégorie.'),
 
   async run(interaction) {
-    // Chemin vers le dossier des commandes
     const commandsPath = path.join(__dirname, '../..', 'commands');
     const categories = {};
 
-    // Fonction pour charger les commandes depuis les sous-dossiers
+    // Fonction pour charger les commandes depuis les fichiers
     const loadCommands = (dir) => {
-      const files = fs.readdirSync(dir);
-
-      for (const file of files) {
+      fs.readdirSync(dir).forEach(file => {
         const fullPath = path.join(dir, file);
 
         if (fs.lstatSync(fullPath).isDirectory()) {
-          // Recurse dans les sous-dossiers
-          loadCommands(fullPath);
+          loadCommands(fullPath); // Récursion pour les sous-dossiers
         } else if (file.endsWith('.js')) {
-          const command = require(fullPath);
-          const category = path.relative(commandsPath, path.dirname(fullPath));
-          
-          if (!categories[category]) {
-            categories[category] = [];
+          try {
+            const command = require(fullPath);
+
+            // Ignorer les fichiers qui ne sont pas des commandes valides
+            if (!command.data || !command.data.name) return;
+
+            const category = path.relative(commandsPath, path.dirname(fullPath)) || 'Général';
+
+            // Ajouter la commande à la catégorie correspondante
+            categories[category] = categories[category] || [];
+            categories[category].push(command.data.name);
+          } catch (error) {
+            console.error(`Erreur lors du chargement de la commande ${fullPath}:`, error);
           }
-          categories[category].push(command.data.name);
         }
-      }
+      });
     };
 
     // Charger toutes les commandes
     loadCommands(commandsPath);
 
-    // Créer un embed pour afficher les commandes
+    // Créer l'embed de la commande help
     const embed = new EmbedBuilder()
-      .setColor('#00ff00')
-      .setTitle('Liste des Commandes')
-      .setDescription('Voici la liste complète des commandes disponibles.');
+      .setColor('#0099ff') // Couleur bleue
+      .setTitle('📚 Liste des commandes')
+      .setDescription('Voici la liste de toutes les commandes disponibles, regroupées par catégorie.')
+      .setThumbnail(interaction.client.user.displayAvatarURL())
+      .setTimestamp();
 
-    // Ajouter les commandes à l'embed
+    // Parcourir les catégories et les commandes
     for (const [category, commands] of Object.entries(categories)) {
       embed.addFields({
-        name: category || 'Général',
-        value: commands.length > 0 ? commands.join(', ') : 'Aucune commande',
-        inline: false,
+        name: `**${category}**`,
+        value: `\`\`\`${commands.join('\n')}\`\`\``, // Utiliser des blocs de code pour un meilleur formatage
+        inline: false, 
       });
     }
 
-    // Envoyer la réponse avec l'embed
+    // Envoyer l'embed à l'utilisateur
     await interaction.reply({ embeds: [embed] });
   },
 };

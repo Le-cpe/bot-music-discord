@@ -1,18 +1,18 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+// play.js
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { QueryType } = require("discord-player");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("play")
-        .setDescription("Play a music")
+        .setDescription("Jouer de la musique")
         .setDMPermission(false)
         .setDefaultMemberPermissions(null)
         .addStringOption(opt =>
             opt.setName("song")
-               .setDescription("The song to play")
-               .setRequired(true)
-               .setAutocomplete(true)),
-               
+                .setDescription("La chanson à jouer")
+                .setRequired(true)
+                .setAutocomplete(true)),
 
     async run(interaction) {
         await interaction.deferReply();
@@ -24,15 +24,15 @@ module.exports = {
         if (!voiceChannelMember) {
             const embed = new EmbedBuilder()
                 .setColor("Red")
-                .setDescription("You are not in a voice channel.");
-            return await interaction.followUp({ embeds: [embed] });
+                .setDescription("Vous n'êtes pas dans un canal vocal.");
+            return await interaction.followUp({ embeds: [embed], ephemeral: true });
         }
 
         if (voiceChannelBot && voiceChannelBot.id !== voiceChannelMember.id) {
             const embed = new EmbedBuilder()
                 .setColor("Red")
-                .setDescription("You are not in the same voice channel.");
-            return await interaction.followUp({ embeds: [embed] });
+                .setDescription("Vous n'êtes pas sur le même canal vocal.");
+            return await interaction.followUp({ embeds: [embed], ephemeral: true });
         }
 
         try {
@@ -44,7 +44,7 @@ module.exports = {
                     leaveOnStop: true,
                     leaveOnEmpty: true,
                     leaveOnEnd: false,
-                    selDeaf: true
+                    selfDeaf: true // Correction : selfDeaf au lieu de selDeaf
                 }
             });
 
@@ -56,12 +56,32 @@ module.exports = {
                 })
                 .setDescription(`🎵 **La musique** \`${track.title}\` **a été ajoutée à la file d'attente.**\n\n🧑‍🤝‍🧑 **Auteur:** \`${track.author}\`\n\n⏰ **Durée:** \`${track.duration}\`\n\n📹 **Url de la vidéo:** [Clique ici](${track.url})`);
 
-            await interaction.followUp({ embeds: [embed] });
+
+            const pauseButton = new ButtonBuilder()
+                .setCustomId('pause_music')
+                .setLabel('Pause')
+                .setStyle(ButtonStyle.Primary);
+
+            const resumeButton = new ButtonBuilder()
+                .setCustomId('resume_music')
+                .setLabel('Reprendre')
+                .setStyle(ButtonStyle.Success);
+
+            const stopButton = new ButtonBuilder()
+                .setCustomId('stop_music')
+                .setLabel('Stop')
+                .setStyle(ButtonStyle.Danger);
+
+            const row = new ActionRowBuilder()
+                .addComponents(pauseButton, resumeButton, stopButton);
+
+            await interaction.followUp({ embeds: [embed], components: [row] });
+
         } catch (err) {
             const embed = new EmbedBuilder()
                 .setColor("Red")
-                .setDescription(`The music \`${song}\` was not found.`);
-            return await interaction.followUp({ embeds: [embed] });
+                .setDescription(`La musique \`${song}\` n'a pas été trouvée.`);
+            return await interaction.followUp({ embeds: [embed], ephemeral: true });
         }
     }
 };
